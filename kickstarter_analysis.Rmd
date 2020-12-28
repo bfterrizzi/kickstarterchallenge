@@ -42,14 +42,14 @@ ks_theme <- theme_minimal() +
 include_graphics("/Users/brandon/Desktop/brain station admissions challenge/logos/ksLogo.png")
 ```
 
-The analysis team has been tasked with determining the feasibility of a Kickstarter campaign. The info that we have received is as follows:  
-   - Minimum Pledge Target is $15,000. Would not be sad to make more. 
+The analysis team has been tasked with determining the feasibility of a Kickstarter campaign. Leadership's minimum Pledge Target is $15,000, but they would not be sad to make more. 
    
-The specific questions posed to the analysis team are: Given the information contained in the database:  
+The specific questions posed to the analysis team are:  
+  
    1. At what dollar amount should we set our initial campaign goal? 
    2. How many backers will we need to be successful?  
   
-Our analyses and suggestions focus on these specific questions. Interpretation of tables and figures are provided throughout but our overall summary and recommendations appear at the end of the document.  
+Our analyses and suggestions focus on these specific questions. Interpretation of tables and figures are provided throughout and our overall summary and recommendations appear at the end of the document.  
   
   
 ## Part 1 - Preliminary Data Analyses
