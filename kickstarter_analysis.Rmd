@@ -1,0 +1,300 @@
+---  
+title: "Brain Station Admissions Challenge"
+subtitle: "Marketing Insights from Kickstarter Database"
+author: "Brandon F. Terrizzi, PhD"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+
+# import required packages
+library(tidyverse)
+library(knitr)
+
+# import data exported from MYSQL workbench
+data <- read.csv("/Users/brandon/Desktop/brain station admissions challenge/kickstarter_data.csv")
+
+#encode "chr" as factors, except 'name'
+data <- data %>% mutate(
+        id = factor(id),
+        launched = as.Date(launched, format="%m/%d/%Y"),
+        deadline = as.Date(deadline, format="%m/%d/%Y"),
+        duration_days = as.integer(deadline - launched), # encoded as integer
+        country = factor(country),
+        currency = factor(currency),
+        category = factor(category),
+        sub_category = factor(sub_category),
+        outcome = factor(outcome),
+        off_from_goal = pledged - goal)
+
+#define theme for figures
+ks_theme <- theme_minimal() + 
+  theme(axis.text.x = element_text(face = "bold"),
+        axis.text.y = element_text(face = "bold"))
+```
+
+## Background
+
+```{r, fig.align = "center", out.width = "40%", out.height = "40%"}
+include_graphics("/Users/brandon/Desktop/brain station admissions challenge/logos/ksLogo.png")
+```
+
+The analysis team has been tasked with determining the feasibility of a Kickstarter campaign. The info that we have received is as follows:  
+   - Minimum Pledge Target is $15,000. Would not be sad to make more. 
+   
+The specific questions posed to the analysis team are: Given the information contained in the database:  
+   1. At what dollar amount should we set our initial campaign goal? 
+   2. How many backers will we need to be successful?  
+  
+Our analyses and suggestions focus on these specific questions. Interpretation of tables and figures are provided throughout but our overall summary and recommendations appear at the end of the document.  
+  
+  
+## Part 1 - Preliminary Data Analyses
+
+### Key metrics corresponding to different campaign outcomes
+```{r}
+
+outcomes <- data %>% group_by(outcome) %>%
+        summarise("Count" = n(),
+                  "Goal" = mean(goal), 
+                  "Pledged" = mean(pledged),
+                  "Backers" = mean(backers),
+                  "From Goal" = mean(off_from_goal),
+                  "Duration" = mean(duration_days)) %>% 
+        arrange(-Count) %>% 
+        ungroup()
+
+kable(outcomes, digits = 2)
+```
+
+Most campaigns in this database have failed. To focus on the factors that associated with success, we will omit live, undefined, cancelled, and suspended campaigns from further analysiss since these make up a small proportion of the database.  
+  
+**IMPORTANT: For ease of interpretation, further analyses omit campaigns outside the US and Great Britian (<10% of database) and have standardized all monetary amounts to USD (value as of Dec. 12th 2020).**  
+  
+  
+```{r}
+# Filter for US and GB and convert GB campaigns to dollar equivalent as of Dec 12th, 2020. 
+data <- data %>% filter(country == "US" | country == "GB") %>% 
+        mutate(country = factor(country),
+               goal = ifelse(currency == "GBP", goal*.74, goal),
+               pledged = ifelse(currency == "GBP", pledged *.74, pledged), 
+               off_from_goal = ifelse(currency == "GBP", off_from_goal*.74, off_from_goal)) # if GB, convert to USD as of 12.20.2020
+```
+  
+
+## Overall Pledges and Backing
+
+### Campaign-categories with the most backers: 
+```{r}
+# grab top 5 backed, and arrange in desc order on backed amount
+top5backed <- data %>% group_by(category) %>%
+        summarise("Count" = n(),
+                  "Duration" = mean(duration_days), 
+                  "Goal" = mean(goal), 
+                  "Pledged" = mean(pledged),
+                  "Backers" = mean(backers),
+                  "Duration" = mean(duration_days),
+                  "From Goal" = mean(off_from_goal)) %>% 
+        arrange(-Backers) %>% 
+        top_n(3, Backers) %>% 
+        ungroup()
+
+kable(top5backed, digits = 2)
+
+```
+  
+### Campaign-categories with the highest earnings: 
+```{r}
+# grab top 5 pledged, and arrange in desc order on pledged amount
+
+top5pledged <- data %>% group_by(category) %>%
+        summarise("Count" = n(),
+                  "Duration" = mean(duration_days),
+                  "Goal" = mean(goal), 
+                  "Pledged" = mean(pledged),
+                  "Backers" = mean(backers),
+                  "From Goal" = mean(off_from_goal)) %>% 
+        arrange(-Backers) %>% 
+        top_n(3, Backers) %>% 
+        ungroup()
+
+kable(top5pledged, digits = 2)
+```
+  
+### Campaign-categories with the lowest number of backers: 
+```{r}
+# grab bottom 5 backed, and arrange in desc order on backed amount
+bottom5backed <- data %>% group_by(category) %>%
+        summarise("Count" = n(),
+                  "Duration" = mean(duration_days),
+                  "Goal" = mean(goal), 
+                  "Pledged" = mean(pledged),
+                  "Backers" = mean(backers),
+                  "From Goal" = mean(off_from_goal)) %>% 
+        arrange(-Backers) %>% 
+        top_n(-3, Backers) %>% 
+        ungroup()
+
+kable(bottom5backed, digits = 2)
+
+```
+  
+  
+### Campaign-categories with the lowest earnings: 
+```{r}
+# grab bottom 5 pledged, and arrange in desc order on pledged amount
+top5pledged <- data %>% group_by(category) %>%
+        summarise("Count" = n(),
+                  "Duration" = mean(duration_days),
+                  "Goal" = mean(goal), 
+                  "Pledged" = mean(pledged),
+                  "Backers" = mean(backers),
+                  "From Goal" = mean(off_from_goal)) %>% 
+        arrange(-Pledged) %>% 
+        top_n(-3, Pledged) %>% 
+        ungroup()
+
+kable(top5pledged, digits = 2)
+
+```
+  
+Great news! Games are top for both backers and pledged amount.Kickstarter may be a solid platform for promoting and rasing captial for our products.
+
+## Highest-earning Tabletop Games
+
+```{r}
+# filter for top 3 tabletope games and arrange by amount pledged. 
+topboardGames <- data %>% filter(sub_category == "Tabletop Games") %>% 
+        top_n(3, pledged) %>% 
+        arrange(-pledged)
+
+topGames <- topboardGames %>% summarize(
+  name = c("Gloomhaven", "Ghostbusters", "Shadows of Brimstone"),
+                            "Duration" = duration_days,
+                            "Goal" = goal, 
+                            "Pledged" = pledged,
+                            "Backers" = backers,
+                            "From Goal" = off_from_goal) %>% 
+  arrange(-Pledged)
+
+knitr::kable(topGames, digits = 2)
+```
+  
+Some games exceed their goals by millions of dollars, but it is notable that the goals and brands associated with these campaigns are lofty (e.g.250K and "Ghostbusters"). Let's look at a larger sample of games to get a sense of what our team can reasonably expect for our products.    
+  
+## Part 2 - Data Vizualization
+  
+### Aim 1: Understanding Initial Goals. 
+  
+#### The Case of Icarus: Failed campaigns ask for too much money. 
+  
+```{r, message = FALSE, warning = FALSE, fig.align = "center", fig.width = 5, fig.height = 2}
+#create factor highlighting game categories that made less than 50K
+highlighted <- data %>% filter(category == "Games" & pledged < 50000, 
+                               outcome == "successful" | outcome == "failed")
+
+ggplot(highlighted, aes(duration_days, pledged, color = outcome)) +
+  scale_x_continuous(limits = c(0,70), n.breaks = 8) + 
+  scale_y_continuous(limits = c(0,50000), n.breaks = 6) + 
+  labs(x = "Duration (Days)", y = "Total Pledged ($)", color = "Outcome") + 
+  scale_color_manual(values = c("#222222", "#05ce78")) +
+  geom_point(size = 2, alpha = .5) + 
+  geom_smooth(method = "lm") + 
+  geom_hline(yintercept = mean(highlighted$goal[highlighted$outcome == "successful"]), 
+             color = "#05ce78", size = 1, linetype = "longdash") +  
+  geom_hline(yintercept = mean(highlighted$goal[highlighted$outcome == "failed"]), 
+             color = "#222222", size = 1, linetype = "longdash") +   
+  facet_wrap(~outcome, scale = "free_y") + 
+  ks_theme
+
+```
+  
+  
+The majority of failed game campaigns never seem to get going. Dashed lines indicate average initial goal amount. This suggests that failed campaigns may fail because they present a target that far exceed's this market's ability. Let's now focus on successful game campaigns.  
+  
+  
+### Successful Game Campaigns
+
+The majority of game campaings (95%) earn under $50,000 so we will focus on campaigns making under this amount.  Tabletop Games are highlighted in red.  
+
+#### Successful tabletop campaigns average 30 days and ~$15K. 
+
+```{r, warning = FALSE, message = FALSE, fig.align = "center", fig.width = 5, fig.height = 2}
+
+target <- highlighted %>% filter(outcome == "successful" & category == "Games" & pledged < 50000) %>% 
+  mutate(tableTop = factor(ifelse(sub_category == "Tabletop Games", 1, 0)),
+                               tableTop = factor(ifelse(tableTop == 1, "Tabletop", "Other Games")))
+
+ggplot(target, aes(duration_days, pledged, color = tableTop)) +
+  scale_x_continuous(limits = c(0,70), n.breaks = 8) + 
+  scale_y_continuous(limits = c(0,50000), n.breaks = 6) + 
+  lims(y = c(0,50000)) + 
+  scale_color_manual(values = c("#222222", "#05ce78")) +
+  labs(x = "Duration (Days)", y = "Total Pledged ($)", color = "Game Type") + 
+  geom_point(size = 2, alpha = .5) + 
+  geom_smooth(method = "loess", span = 2) + 
+  ks_theme 
+```
+  
+These earnings are intimately related to a campaign's initial goal. 
+\newpage  
+  
+#### On average, successful campaigns' earnings are 2x their initial goals. 
+```{r, warning = FALSE, message = FALSE, fig.align = "center", fig.width = 5, fig.height = 2}
+
+ggplot(target, aes(goal, pledged, color = tableTop)) +
+  scale_x_continuous(limits = c(0,50000), n.breaks = 6) + 
+  scale_y_continuous(limits = c(0,50000), n.breaks = 6) + 
+  scale_color_manual(values = c("#222222", "#05ce78")) +
+  labs(x = "Goal ($)", y = "Total Pledged ($)", color = "Game Type") + 
+  geom_point(size = 2, alpha = .3) + 
+  geom_vline(xintercept = mean(target$goal[target$tableTop == "Tabletop"]), color = "#05ce78", size = 1, linetype = "longdash") + 
+  geom_hline(yintercept = mean(target$pledged[target$tableTop == "Tabletop"]), color = "#05ce78", size = 1, linetype = "longdash") + 
+  geom_smooth(method = "loess", span = 2) +
+  ks_theme
+```
+  
+The intersecton of the dashed lines represents the average goal & pledged amounts for Tabletop games. On average, these campaigns come close to doubling their initial goal. The trajectory for other games is identical. 
+   
+### Aim 2: Understanding Backers' Contribution. 
+  
+#### More Backers = More Money.
+
+```{r, warning = FALSE, message = FALSE, fig.align = "center", fig.width = 5, fig.height = 2}
+target2 <- target %>% filter(backers <1000)
+
+ggplot(target2, aes(backers, pledged, color = tableTop)) +
+  scale_x_continuous(limits = c(0,1000), n.breaks = 6) + 
+  scale_y_continuous(limits = c(0,50000), n.breaks = 6) + 
+  labs(x = "# of Backers", y = "Total Pledged ($)", color = "Game Type") + 
+  scale_color_manual(values = c("#222222", "#05ce78")) +
+  geom_point(size = 2, alpha = .5) + 
+  geom_smooth(method = "loess", span = 1) + 
+  geom_vline(xintercept = mean(target2$backers[target2$tableTop == "Tabletop"]), 
+             color = "#05ce78", size = 1, linetype = "longdash") + 
+  geom_hline(yintercept = mean(target2$pledged[target2$tableTop == "Tabletop"]), 
+             color = "#05ce78", size = 1, linetype = "longdash") + 
+  ks_theme
+```
+
+The intersection of the dashed lines represents the average backers (= 257) and earnings (~15K) for tabletop games. The earnings/backers relationship appears to level off after 600 but this is an artifact of this data.
+\newpage
+  
+  
+## Part 3 - Summary and Recommendations
+
+### Summary
+
+Our analyses suggest that Kickstarter is a promising platform for promoting and generating capital for our products. Game campaigns are among the most highly supported campaigns on this platform. Promisingly, campaings for tabletop games are the highest earning within the gaming market. 
+
+### Data-Based Reccomendations  
+#### Initial Goal    
+Our analyses suggest that we should anticipate lauching a **30-day campaign** with an advertsied goal of **$12,500 USD** to achieve leadership's aims. Although the advertised goal is **$2,500** lower than our internal goal, this number is consistent with the majority of successful game campaigns that frequenlty double their goals. Given the previous success of game campaigns on Kickstarter, and the particular interts in tabletop games from users of this platform, our view is that this goal is sufficient to meer leadership's minimum goal while also setting us up to make more. On this basis, someone might by tempted to lead with a more ambitious goal, but we caution that initial goals in the neighborhood of **$30,000** are associated with failing. 
+
+#### Backing & Suggested Pledge    
+On average, game campaigns receive approximately 250 backers. Thus, we should encourage backers to contribute amounts between **$70 - $100** **USD** to surpass our aims. One strategy for doing so woule be to compare our product to other well-known games whose MSRP exceeds this range. Additionally, we might set up contribution levels that provide additional incentives for backers who pledge at higher amounts.  
+  
+As always, past peformance is often a reliable predictor of future performance, but nothing is guaranteed. We hope that our analyses prove helpful to management's decision-making. Please reach out for clarification or elaboration on our analysis strategy or reccomendations. 
